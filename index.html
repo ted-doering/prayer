@@ -730,17 +730,22 @@ class Component extends DCLogic {
       this.setState({ signinError: 'This page is open directly from your computer (file://). Google sign-in only works from the published web address — open https://ted-doering.github.io/prayer/ in your browser instead.' });
       return;
     }
-    const provider = new firebase.auth.GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-    const where = ' [' + window.location.origin + ']';
+    let info = '';
+    try {
+      const opts = (firebase.app().options) || {};
+      info = '  |  fb v' + (firebase.SDK_VERSION || '?') + ' · authDomain=' + (opts.authDomain || 'MISSING') + ' · popupFn=' + (typeof this.auth.signInWithPopup);
+    } catch (x) { info = '  |  diag: ' + x.message; }
+    let provider;
+    try {
+      provider = new firebase.auth.GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+    } catch (x) {
+      this.setState({ signinError: 'Provider error: ' + x.message + info });
+      return;
+    }
     this.auth.signInWithPopup(provider).catch(err => {
-      const code = (err && err.code) || '';
-      const fallback = ['auth/popup-blocked', 'auth/cancelled-popup-request', 'auth/popup-closed-by-user', 'auth/operation-not-supported-in-this-environment', 'auth/argument-error'];
-      if (fallback.includes(code)) {
-        this.auth.signInWithRedirect(provider).catch(e => this.setState({ signinError: 'Sign-in failed: ' + (e.code || e.message) + where }));
-      } else {
-        this.setState({ signinError: 'Sign-in failed: ' + (code || err.message) + where });
-      }
+      const msg = (err && (err.message || err.code)) || 'unknown error';
+      this.setState({ signinError: msg + info });
     });
   };
   signOut = () => {
