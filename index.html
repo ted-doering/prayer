@@ -680,29 +680,43 @@ class Component extends DCLogic {
   componentWillUnmount() { if (this.dbRef) this.dbRef.off(); }
 
   initFirebase(cfg, tries) {
-    if (!window.firebase || !firebase.auth || !firebase.database) {
-      if (tries > 80) { this.setState({ mode: 'setup' }); return; }
+    if (!window.firebase || !firebase.auth || !firebase.database || !firebase.initializeApp) {
+      if (tries > 120) { this.setState({ mode: 'setup' }); return; }
       setTimeout(() => this.initFirebase(cfg, tries + 1), 100);
       return;
     }
     try {
-      if (!firebase.apps.length) firebase.initializeApp(cfg);
-      this.auth = firebase.auth();
-      this.db = firebase.database();
-      this.auth.getRedirectResult().catch(e => this.setState({ signinError: 'Sign-in failed: ' + e.message }));
-      this.auth.onAuthStateChanged(user => {
-        if (user && this.allowed(user)) {
-          this.subscribe();
-          this.setState({ user, demo: false, mode: 'ready', signinError: '' });
-        } else {
-          if (user) { this.auth.signOut(); this.setState({ signinError: 'That account is not on the staff allow-list.' }); }
-          if (this.dbRef) { this.dbRef.off(); this.dbRef = null; }
-          this.setState({ user: null, prayers: [], mode: 'signin' });
-        }
-      });
+      this.ensureFirebase();
     } catch (e) {
       console.warn('Firebase init failed', e);
       this.setState({ mode: 'setup' });
+    }
+  }
+
+  ensureFirebase() {
+    const cfg = window.NC_FIREBASE_CONFIG;
+    if (!firebase.apps || !firebase.apps.length) {
+      firebase.initializeApp(cfg);
+      this._bound = false;
+    }
+    this.auth = firebase.auth();
+    this.db = firebase.database();
+    if (!this._bound) {
+      this._bound = true;
+      this.auth.getRedirectResult().catch(() => {});
+      this.auth.onAuthStateChanged(user => this.onAuthChange(user));
+    }
+    return this.auth;
+  }
+
+  onAuthChange(user) {
+    if (user && this.allowed(user)) {
+      this.subscribe();
+      this.setState({ user, demo: false, mode: 'ready', signinError: '' });
+    } else {
+      if (user) { this.auth.signOut(); this.setState({ signinError: 'That account is not on the staff allow-list.' }); }
+      if (this.dbRef) { this.dbRef.off(); this.dbRef = null; }
+      this.setState({ user: null, prayers: [], mode: 'signin' });
     }
   }
   allowed(user) {
@@ -712,6 +726,7 @@ class Component extends DCLogic {
   }
   subscribe() {
     if (this.dbRef) return;
+    this.ensureFirebase();
     this.dbRef = this.db.ref('prayers');
     this.dbRef.on('value', snap => {
       const val = snap.val() || {};
@@ -730,22 +745,19 @@ class Component extends DCLogic {
       this.setState({ signinError: 'This page is open directly from your computer (file://). Google sign-in only works from the published web address — open https://ted-doering.github.io/prayer/ in your browser instead.' });
       return;
     }
-    let info = '';
-    try {
-      const opts = (firebase.app().options) || {};
-      info = '  |  fb v' + (firebase.SDK_VERSION || '?') + ' · authDomain=' + (opts.authDomain || 'MISSING') + ' · popupFn=' + (typeof this.auth.signInWithPopup);
-    } catch (x) { info = '  |  diag: ' + x.message; }
-    let provider;
-    try {
-      provider = new firebase.auth.GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: 'select_account' });
-    } catch (x) {
-      this.setState({ signinError: 'Provider error: ' + x.message + info });
-      return;
-    }
-    this.auth.signInWithPopup(provider).catch(err => {
-      const msg = (err && (err.message || err.code)) || 'unknown error';
-      this.setState({ signinError: msg + info });
+    let auth;
+    try { auth = this.ensureFirebase(); }
+    catch (e) { this.setState({ signinError: 'Could not start Firebase: ' + e.message }); return; }
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    auth.signInWithPopup(provider).catch(err => {
+      const code = (err && err.code) || '';
+      const popupFail = ['auth/popup-blocked', 'auth/cancelled-popup-request', 'auth/popup-closed-by-user', 'auth/operation-not-supported-in-this-environment'];
+      if (popupFail.includes(code)) {
+        auth.signInWithRedirect(provider).catch(e => this.setState({ signinError: 'Sign-in failed: ' + (e.code || e.message) }));
+      } else {
+        this.setState({ signinError: 'Sign-in failed: ' + (err.message || code) });
+      }
     });
   };
   signOut = () => {
@@ -823,6 +835,7 @@ class Component extends DCLogic {
         return { prayers };
       }, this.persistDemo);
     } else {
+      this.ensureFirebase();
       const { id, ...rest } = doc;
       this.db.ref('prayers/' + id).set(rest).catch(e => alert('Save failed: ' + e.message));
     }
@@ -831,6 +844,7 @@ class Component extends DCLogic {
     if (this.state.demo) {
       this.setState(s => ({ prayers: s.prayers.map(p => (p.id === id ? { ...p, ...patch } : p)) }), this.persistDemo);
     } else {
+      this.ensureFirebase();
       this.db.ref('prayers/' + id).update(patch).catch(e => alert('Update failed: ' + e.message));
     }
   }
@@ -839,6 +853,7 @@ class Component extends DCLogic {
     if (this.state.demo) {
       this.setState(s => ({ prayers: s.prayers.filter(p => p.id !== id) }), this.persistDemo);
     } else {
+      this.ensureFirebase();
       this.db.ref('prayers/' + id).remove().catch(e => alert('Delete failed: ' + e.message));
     }
   }
