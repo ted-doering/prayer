@@ -615,7 +615,7 @@ textarea.input { min-height: 90px; resize: vertical; }
               <div class="field" style="flex:1; min-width:130px">
                 <label>Type</label>
                 <select class="input" value="{{ draft.type }}" onChange="{{ setType }}">
-                  <option>Healing</option><option>Grief</option><option>Praise</option><option>Guidance</option><option>Salvation</option>
+                  <option>Healing</option><option>Cancer</option><option>Grief</option><option>Praise</option><option>Guidance</option><option>Salvation</option>
                 </select>
               </div>
               <div class="field" style="flex:1; min-width:130px">
@@ -722,8 +722,21 @@ class Component extends DCLogic {
 
   signIn = () => {
     this.setState({ signinError: '' });
+    if (window.self !== window.top) {
+      this.setState({ signinError: 'Google sign-in must be done on the live site in its own browser tab — it can\u2019t run inside this embedded preview. Open ted-doering.github.io/prayer/ directly, or use demo mode below.' });
+      return;
+    }
     const provider = new firebase.auth.GoogleAuthProvider();
-    this.auth.signInWithRedirect(provider).catch(e => this.setState({ signinError: 'Sign-in failed: ' + e.message }));
+    provider.setCustomParameters({ prompt: 'select_account' });
+    this.auth.signInWithPopup(provider).catch(err => {
+      const code = (err && err.code) || '';
+      const fallback = ['auth/popup-blocked', 'auth/cancelled-popup-request', 'auth/popup-closed-by-user', 'auth/operation-not-supported-in-this-environment', 'auth/argument-error'];
+      if (fallback.includes(code)) {
+        this.auth.signInWithRedirect(provider).catch(e => this.setState({ signinError: 'Sign-in failed: ' + (e.code || e.message) }));
+      } else {
+        this.setState({ signinError: 'Sign-in failed: ' + (code || err.message) });
+      }
+    });
   };
   signOut = () => {
     if (this.state.demo) { this.exitDemo(); return; }
