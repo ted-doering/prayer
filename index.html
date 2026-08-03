@@ -726,15 +726,20 @@ class Component extends DCLogic {
       this.setState({ signinError: 'Google sign-in must be done on the live site in its own browser tab — it can\u2019t run inside this embedded preview. Open ted-doering.github.io/prayer/ directly, or use demo mode below.' });
       return;
     }
+    if (window.location.protocol === 'file:' || !window.location.hostname) {
+      this.setState({ signinError: 'This page is open directly from your computer (file://). Google sign-in only works from the published web address — open https://ted-doering.github.io/prayer/ in your browser instead.' });
+      return;
+    }
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
+    const where = ' [' + window.location.origin + ']';
     this.auth.signInWithPopup(provider).catch(err => {
       const code = (err && err.code) || '';
       const fallback = ['auth/popup-blocked', 'auth/cancelled-popup-request', 'auth/popup-closed-by-user', 'auth/operation-not-supported-in-this-environment', 'auth/argument-error'];
       if (fallback.includes(code)) {
-        this.auth.signInWithRedirect(provider).catch(e => this.setState({ signinError: 'Sign-in failed: ' + (e.code || e.message) }));
+        this.auth.signInWithRedirect(provider).catch(e => this.setState({ signinError: 'Sign-in failed: ' + (e.code || e.message) + where }));
       } else {
-        this.setState({ signinError: 'Sign-in failed: ' + (code || err.message) });
+        this.setState({ signinError: 'Sign-in failed: ' + (code || err.message) + where });
       }
     });
   };
