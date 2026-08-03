@@ -689,6 +689,7 @@ class Component extends DCLogic {
       if (!firebase.apps.length) firebase.initializeApp(cfg);
       this.auth = firebase.auth();
       this.db = firebase.database();
+      this.auth.getRedirectResult().catch(e => this.setState({ signinError: 'Sign-in failed: ' + e.message }));
       this.auth.onAuthStateChanged(user => {
         if (user && this.allowed(user)) {
           this.subscribe();
@@ -722,7 +723,7 @@ class Component extends DCLogic {
   signIn = () => {
     this.setState({ signinError: '' });
     const provider = new firebase.auth.GoogleAuthProvider();
-    this.auth.signInWithPopup(provider).catch(e => this.setState({ signinError: 'Sign-in failed: ' + e.message }));
+    this.auth.signInWithRedirect(provider).catch(e => this.setState({ signinError: 'Sign-in failed: ' + e.message }));
   };
   signOut = () => {
     if (this.state.demo) { this.exitDemo(); return; }
