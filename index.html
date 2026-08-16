@@ -539,6 +539,7 @@ textarea.input { min-height: 90px; resize: vertical; }
               <div style="display:inline-flex; border:1px solid var(--color-divider); border-radius:8px; overflow:hidden">
                 <button onClick="{{ setWorship }}" style="{{ worshipStyle }}">Worship copy</button>
                 <button onClick="{{ setTeam }}" style="{{ teamStyle }}">Prayer-team email</button>
+                <button onClick="{{ setConfidential }}" style="{{ confidentialStyle }}">Confidential</button>
               </div>
               <div style="flex:1"></div>
               <button class="btn btn-secondary" onClick="{{ print }}">
@@ -632,7 +633,7 @@ textarea.input { min-height: 90px; resize: vertical; }
             </div>
             <label style="display:flex; gap:10px; align-items:flex-start; cursor:pointer; font-size:14px; padding:4px 2px">
               <input type="checkbox" checked="{{ draft.private }}" onChange="{{ togglePrivate }}" style="margin-top:3px; width:16px; height:16px; accent-color:var(--color-accent)" />
-              <span style="color:var(--color-neutral-300)">Confidential — include in the worship copy only, keep out of the emailed prayer-team version.</span>
+              <span style="color:var(--color-neutral-300)">Confidential — kept in the separate confidential copy only; left out of the worship and prayer-team lists.</span>
             </label>
             <div class="dialog-actions">
               <button class="btn btn-secondary" onClick="{{ cancel }}">Cancel</button>
@@ -904,7 +905,7 @@ class Component extends DCLogic {
     const archivedItems = s.prayers.filter(p => p.archived)
       .sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded)).map(p => this.vm(p));
 
-    const forDoc = active.filter(p => s.docVersion === 'worship' || !p.private);
+    const forDoc = active.filter(p => s.docVersion === 'confidential' ? p.private : !p.private);
     const docGroups = this.TYPES.map(t => ({
       key: t, label: t,
       items: forDoc.filter(p => p.type === t && p.status !== 'Answered')
@@ -912,11 +913,11 @@ class Component extends DCLogic {
     })).filter(g => g.items.length);
     const docAnswered = forDoc.filter(p => p.status === 'Answered').map(p => this.vm(p));
     const hiddenPrivate = active.filter(p => p.private).length;
-    const docVersionNote = s.docVersion === 'worship'
-      ? 'Worship copy — includes confidential requests. For the worship team only.'
+    const docVersionNote = s.docVersion === 'confidential'
+      ? 'Confidential copy — sensitive requests only. Do not print for worship or email to the prayer team.'
       : (hiddenPrivate > 0
-          ? `Prayer-team copy — safe to email. ${hiddenPrivate} confidential request${hiddenPrivate > 1 ? 's are' : ' is'} kept in the worship copy only.`
-          : 'Prayer-team copy — safe to email out to the prayer team.');
+          ? `${s.docVersion === 'worship' ? 'Worship copy' : 'Prayer-team copy'} — ${hiddenPrivate} confidential request${hiddenPrivate > 1 ? 's are' : ' is'} kept in the confidential copy only.`
+          : (s.docVersion === 'worship' ? 'Worship copy — for reading in the service.' : 'Prayer-team copy — safe to email out to the prayer team.'));
 
     const tabBase = 'padding:6px 12px;font-size:14px;font-family:var(--font-heading);background:transparent;border:none;cursor:pointer;border-radius:8px;color:var(--color-neutral-300);display:inline-flex;align-items:center;gap:7px;';
     const tabOn = 'background:color-mix(in srgb, var(--color-accent) 14%, transparent);color:var(--color-accent);';
@@ -981,8 +982,10 @@ class Component extends DCLogic {
       docVersionNote,
       setWorship: () => this.setDocVersion('worship'),
       setTeam: () => this.setDocVersion('team'),
+      setConfidential: () => this.setDocVersion('confidential'),
       worshipStyle: segBase + (s.docVersion === 'worship' ? segOn : ''),
       teamStyle: segBase + 'border-left:1px solid var(--color-divider);' + (s.docVersion === 'team' ? segOn : ''),
+      confidentialStyle: segBase + 'border-left:1px solid var(--color-divider);' + (s.docVersion === 'confidential' ? segOn : ''),
       print: () => window.print(),
       // dialog
       dialogOpen: s.dialogOpen,
