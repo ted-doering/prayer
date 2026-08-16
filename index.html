@@ -649,7 +649,7 @@ textarea.input { min-height: 90px; resize: vertical; }
 <script type="text/x-dc" data-dc-script>
 class Component extends DCLogic {
   KEY = 'nc_prayers_v1';
-  TYPES = ['Healing', 'Cancer', 'Grief', 'Praise', 'Guidance', 'Salvation', 'Friends'];
+  TYPES = ['Cancer', 'Healing', 'Grief', 'Praise', 'Guidance', 'Salvation', 'Friends'];
   SRANK = { Urgent: 0, Ongoing: 1, Answered: 2 };
   RULES = '{\n  "rules": {\n    "prayers": {\n      ".read": "auth != null",\n      ".write": "auth != null"\n    }\n  }\n}';
 
