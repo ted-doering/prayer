@@ -515,7 +515,7 @@ textarea.input { min-height: 90px; resize: vertical; }
                     <span class="{{ p.statusClass }}">{{ p.status }}</span>
                   </div>
                   <div style="font-size:12px; color:var(--color-neutral-500); margin-top:5px">
-                    {{ p.who }} &nbsp;·&nbsp; Requested by {{ p.requestor }} &nbsp;·&nbsp; {{ p.typeLabel }}<sc-if value="{{ p.isAnswered }}"> &nbsp;·&nbsp; Answered {{ p.answeredLabel }}</sc-if>
+                    Requested by {{ p.requestor }} &nbsp;·&nbsp; {{ p.typeLabel }}<sc-if value="{{ p.isAnswered }}"> &nbsp;·&nbsp; Answered {{ p.answeredLabel }}</sc-if>
                   </div>
                   <p style="font-size:13px; color:var(--color-neutral-400); margin:10px 0 0; line-height:1.55">{{ p.notes }}</p>
                   <div style="display:flex; gap:2px; margin-top:13px; padding-top:12px; border-top:1px solid var(--color-divider)">
@@ -615,7 +615,7 @@ textarea.input { min-height: 90px; resize: vertical; }
               <div class="field" style="flex:1; min-width:130px">
                 <label>Type</label>
                 <select class="input" value="{{ draft.type }}" onChange="{{ setType }}">
-                  <option>Healing</option><option>Cancer</option><option>Grief</option><option>Praise</option><option>Guidance</option><option>Salvation</option>
+                  <option>Healing</option><option>Cancer</option><option>Grief</option><option>Praise</option><option>Guidance</option><option>Salvation</option><option>Friends</option>
                 </select>
               </div>
               <div class="field" style="flex:1; min-width:130px">
@@ -625,12 +625,7 @@ textarea.input { min-height: 90px; resize: vertical; }
                 </select>
               </div>
             </div>
-            <div class="field">
-              <label>Grouping</label>
-              <select class="input" value="{{ draft.who }}" onChange="{{ setWho }}">
-                <option>Members</option><option>Extended family</option><option>Community &amp; world</option>
-              </select>
-            </div>
+
             <div class="field">
               <label>Notes &amp; updates</label>
               <textarea class="input" value="{{ draft.notes }}" onInput="{{ setNotes }}" placeholder="Details, updates, how to pray..." style="min-height:96px"></textarea>
@@ -653,7 +648,7 @@ textarea.input { min-height: 90px; resize: vertical; }
 <script type="text/x-dc" data-dc-script>
 class Component extends DCLogic {
   KEY = 'nc_prayers_v1';
-  WHO = ['Members', 'Extended family', 'Community & world'];
+  TYPES = ['Healing', 'Cancer', 'Grief', 'Praise', 'Guidance', 'Salvation', 'Friends'];
   SRANK = { Urgent: 0, Ongoing: 1, Answered: 2 };
   RULES = '{\n  "rules": {\n    "prayers": {\n      ".read": "auth != null",\n      ".write": "auth != null"\n    }\n  }\n}';
 
@@ -901,18 +896,18 @@ class Component extends DCLogic {
     const active = s.prayers.filter(p => !p.archived);
     const byRank = (a, b) => (this.SRANK[a.status] - this.SRANK[b.status]) || (new Date(b.dateAdded) - new Date(a.dateAdded));
 
-    const groups = this.WHO.map(w => ({
-      key: w, label: w,
-      items: active.filter(p => p.who === w).sort(byRank).map(p => this.vm(p)),
+    const groups = this.TYPES.map(t => ({
+      key: t, label: t,
+      items: active.filter(p => p.type === t).sort(byRank).map(p => this.vm(p)),
     })).filter(g => g.items.length).map(g => ({ ...g, count: g.items.length }));
 
     const archivedItems = s.prayers.filter(p => p.archived)
       .sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded)).map(p => this.vm(p));
 
     const forDoc = active.filter(p => s.docVersion === 'worship' || !p.private);
-    const docGroups = this.WHO.map(w => ({
-      key: w, label: w,
-      items: forDoc.filter(p => p.who === w && p.status !== 'Answered')
+    const docGroups = this.TYPES.map(t => ({
+      key: t, label: t,
+      items: forDoc.filter(p => p.type === t && p.status !== 'Answered')
         .sort((a, b) => (a.status === 'Urgent' ? 0 : 1) - (b.status === 'Urgent' ? 0 : 1)).map(p => this.vm(p)),
     })).filter(g => g.items.length);
     const docAnswered = forDoc.filter(p => p.status === 'Answered').map(p => this.vm(p));
@@ -1001,8 +996,7 @@ class Component extends DCLogic {
       setRequestor: (e) => this.upd('requestor', e.target.value),
       setType: (e) => this.upd('type', e.target.value),
       setStatus: (e) => this.upd('status', e.target.value),
-      setWho: (e) => this.upd('who', e.target.value),
-      setNotes: (e) => this.upd('notes', e.target.value),
+        setNotes: (e) => this.upd('notes', e.target.value),
       togglePrivate: (e) => this.upd('private', e.target.checked),
       save: () => this.save(),
     };
